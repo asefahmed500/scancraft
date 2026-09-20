@@ -41,3 +41,9 @@ example
 # generated native folders
 /ios
 /android
+
+# signing keystore — never commit
+android/app/scancraft-release.keystore
+*.keystore
+# eas simulator session token
+.env.eas-simulator

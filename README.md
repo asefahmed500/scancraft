@@ -1,56 +1,45 @@
-# Welcome to your Expo app 👋
+# ScanCraft
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A native document scanner app built with [Expo](https://expo.dev) and React Native — a clean,
+off-white CamScanner-style flow with Geist + Inter typography.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Library** — grid of saved documents with page-count badges, timestamps, pull-to-refresh
+- **Capture** — live camera (back/front, flash modes) with document guide frame, plus picking an
+  existing photo from the library
+- **Review & crop** — draggable four-corner crop with grid overlay and 90° rotation
+- **Filter & enhance** — live Skia-powered previews: Original, Grayscale, B&W, Color, Magic Color,
+  plus brightness / contrast / saturation sliders
+- **Multi-page sessions** — reorder, rotate, re-crop, or delete pages before export
+- **Export** — PDF (via `expo-print`) or JPG/PNG saved to your photo library, with share-sheet
+  integration; quality presets control resolution and compression
+- **Settings** — default camera, default export format/quality, storage usage, clear cache,
+  delete all documents
 
-   ```bash
-   npm install
-   ```
+All scans stay on-device: documents live under the app's document directory with an `index.json`
+library index; nothing is uploaded.
 
-2. Start the app
+## Stack
 
-   ```bash
-   npx expo start
-   ```
+- Expo SDK 57, React Native 0.86, TypeScript, expo-router (file-based navigation)
+- `expo-camera` capture, `expo-image-manipulator` crop/rotate, `@shopify/react-native-skia`
+  color-matrix filters, `expo-print` PDF, `expo-media-library` + `expo-sharing` export,
+  `expo-file-system` persistence
+- `react-native-reanimated` + `react-native-gesture-handler` for the crop interaction
 
-In the output, you'll find options to open the app in a
+## Run
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```sh
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Press `i` (iOS simulator), `a` (Android emulator), or scan the QR code with Expo Go.
 
-### Other setup steps
+## Verify
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```sh
+npm run lint        # ESLint
+npx tsc --noEmit    # typecheck
+```
