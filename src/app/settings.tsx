@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   rowButton: {
-    minHeight: 36,
+    minHeight: 44,
     justifyContent: 'center',
   },
   browseRow: {

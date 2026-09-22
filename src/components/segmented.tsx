@@ -47,7 +47,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
+    minHeight: 40,
     borderRadius: 6,
   },
   optionActive: {

@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.s,
   },
   action: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.s,

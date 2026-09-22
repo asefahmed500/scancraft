@@ -149,6 +149,7 @@ export default function FilesScreen() {
                     ))}
                     <View style={styles.docActions}>
                       <Pressable
+                        hitSlop={6}
                         accessibilityRole="button"
                         accessibilityLabel={`Open ${doc.name}`}
                         onPress={() => router.push(`/document/${doc.id}`)}
@@ -157,6 +158,7 @@ export default function FilesScreen() {
                         <Text style={[type.caption, styles.docActionText]}>Open</Text>
                       </Pressable>
                       <Pressable
+                        hitSlop={6}
                         accessibilityRole="button"
                         accessibilityLabel={`Delete ${doc.name}`}
                         onPress={() => onDeleteDoc(doc)}
@@ -302,7 +304,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    minHeight: 32,
+    minHeight: 36,
     paddingHorizontal: spacing.s,
     borderRadius: radius.s,
     borderWidth: 1,
