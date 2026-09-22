@@ -41,5 +41,11 @@ Press `i` (iOS simulator), `a` (Android emulator), or scan the QR code with Expo
 
 ```sh
 npm run lint        # ESLint
-npx tsc --noEmit    # typecheck
+npm run typecheck   # TypeScript
+npm test            # Jest — filters math + storage integrity
 ```
+
+## Build & deploy
+
+See [BUILD.md](./BUILD.md) for the full EAS cloud build walkthrough (APK + store AAB)
+and the local Gradle alternative.
