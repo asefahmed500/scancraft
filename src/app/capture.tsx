@@ -24,6 +24,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSession } from '@/lib/session';
 import { loadSettings, saveSettings } from '@/lib/storage';
+import { makeThumb } from '@/lib/imaging';
 import { GradientButton } from '@/components/gradient-button';
 import { colors, radius, spacing, type } from '@/lib/theme';
 
@@ -134,18 +135,29 @@ export default function CaptureScreen() {
     setCapturing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     try {
-      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.95 });
+      // Guard against a hung native capture — never leave the shutter stuck.
+      const photo = await Promise.race([
+        cameraRef.current?.takePictureAsync({ quality: 0.95 }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000)),
+      ]);
       if (!photo?.uri || !focusAliveRef.current || !mountedRef.current) return;
 
       if (fastMode) {
         // Burst capture: skip crop review, add straight to the session.
         flashScreen();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        let thumb: string | undefined;
+        try {
+          thumb = await makeThumb(photo.uri);
+        } catch {
+          thumb = undefined;
+        }
         addPage({
           id: `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
           uri: photo.uri,
           width: photo.width,
           height: photo.height,
+          thumb,
         });
       } else {
         router.push({
@@ -219,19 +231,25 @@ export default function CaptureScreen() {
         <Pressable
           style={({ pressed }) => [styles.roundButton, capturing && styles.shutterBusy, pressed && styles.pressed]}
           onPress={() => router.back()}
-          disabled={capturing}>
+          disabled={capturing}
+          accessibilityRole="button"
+          accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={24} color={colors.white} />
         </Pressable>
         <View style={{ flex: 1 }} />
         <Pressable
           style={({ pressed }) => [styles.fastChip, fastMode && styles.fastChipOn, pressed && styles.pressed]}
-          onPress={toggleFastMode}>
+          onPress={toggleFastMode}
+          accessibilityRole="button"
+          accessibilityLabel="Toggle fast capture">
           <Ionicons name="layers-outline" size={14} color={fastMode ? colors.white : 'rgba(255,255,255,0.85)'} />
           <Text style={[type.caption, styles.fastChipText]}>Fast</Text>
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.roundButton, pressed && styles.pressed]}
-          onPress={() => setFlash((f) => (f === 'off' ? 'on' : f === 'on' ? 'auto' : 'off'))}>
+          onPress={() => setFlash((f) => (f === 'off' ? 'on' : f === 'on' ? 'auto' : 'off'))}
+          accessibilityRole="button"
+          accessibilityLabel="Toggle flash">
           <Ionicons
             name={flash === 'off' ? 'flash-off' : flash === 'on' ? 'flash' : 'flash-outline'}
             size={22}
@@ -240,7 +258,9 @@ export default function CaptureScreen() {
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.roundButton, pressed && styles.pressed]}
-          onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}>
+          onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}
+          accessibilityRole="button"
+          accessibilityLabel="Switch camera">
           <Ionicons name="camera-reverse-outline" size={22} color={colors.white} />
         </Pressable>
       </SafeAreaView>
@@ -250,10 +270,12 @@ export default function CaptureScreen() {
           <View style={styles.stripRow}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
               {pages.map((page) => (
-                <Image key={page.id} source={{ uri: page.uri }} style={styles.stripThumb} contentFit="cover" />
+                <Image key={page.id} source={{ uri: page.thumb ?? page.uri }} style={styles.stripThumb} contentFit="cover" />
               ))}
             </ScrollView>
-            <Pressable style={({ pressed }) => [styles.donePill, pressed && styles.pressed]} onPress={() => router.push('/pages')}>
+            <Pressable style={({ pressed }) => [styles.donePill, pressed && styles.pressed]} onPress={() => router.push('/pages')}
+          accessibilityRole="button"
+          accessibilityLabel="Review captured pages">
               <Text style={[type.label, styles.donePillText]}>
                 {pages.length}
               </Text>
@@ -262,7 +284,9 @@ export default function CaptureScreen() {
           </View>
         )}
         <View style={styles.controlsRow}>
-          <Pressable style={({ pressed }) => [styles.sideButton, pressed && styles.pressed]} onPress={pickFromLibrary}>
+          <Pressable style={({ pressed }) => [styles.sideButton, pressed && styles.pressed]} onPress={pickFromLibrary}
+          accessibilityRole="button"
+          accessibilityLabel="Pick an image from the library">
             <Ionicons name="images-outline" size={26} color={colors.white} />
           </Pressable>
           <Pressable

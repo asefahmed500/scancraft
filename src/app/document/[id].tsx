@@ -166,7 +166,7 @@ export default function DocumentScreen() {
         onBack={() => router.back()}
         style={styles.header}
         right={
-          <Pressable hitSlop={12} onPress={onDelete} style={({ pressed }) => [styles.trash, pressed && styles.pressed]}>
+          <Pressable hitSlop={12} onPress={onDelete} accessibilityRole="button" accessibilityLabel="Delete document" style={({ pressed }) => [styles.trash, pressed && styles.pressed]}>
             <Ionicons name="trash-outline" size={20} color={colors.destructive} />
           </Pressable>
         }
@@ -214,6 +214,7 @@ export default function DocumentScreen() {
             onSavePhotos();
           }}
           disabled={busy}
+          variant="ghost"
           style={styles.ghostBtn}
         />
       </BlurView>

@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useSession } from '@/lib/session';
-import { cropRotate, downscaleIfNeeded, EDIT_MAX_DIM } from '@/lib/imaging';
+import { cropRotate, downscaleIfNeeded, makeThumb, EDIT_MAX_DIM } from '@/lib/imaging';
 import { safeDeleteCacheFile } from '@/lib/storage';
 import { ScreenHeader } from '@/components/screen-header';
 import { GradientButton } from '@/components/gradient-button';
@@ -32,7 +32,13 @@ export default function PagesScreen() {
       const result = await cropRotate(src, null, 90);
       safeDeleteCacheFile(page.uri);
       if (src !== page.uri) safeDeleteCacheFile(src);
-      replacePage(page.id, { ...page, uri: result.uri, width: result.width, height: result.height });
+      let thumb = page.thumb;
+      try {
+        thumb = await makeThumb(result.uri);
+      } catch {
+        // keep previous thumb
+      }
+      replacePage(page.id, { ...page, uri: result.uri, width: result.width, height: result.height, thumb });
     } catch {
       Alert.alert('Rotate failed', 'The page could not be rotated. Please try again.');
     } finally {
@@ -65,7 +71,7 @@ export default function PagesScreen() {
       <ScrollView contentContainerStyle={styles.list}>
         {pages.map((page, index) => (
           <View key={page.id} style={styles.row}>
-            <Image source={{ uri: page.uri }} style={styles.thumb} contentFit="cover" />
+            <Image source={{ uri: page.thumb ?? page.uri }} style={styles.thumb} contentFit="cover" />
             <View style={styles.info}>
               <Text style={[type.label]}>Page {index + 1}</Text>
               <Text style={[type.caption, styles.caption]}>
@@ -76,6 +82,8 @@ export default function PagesScreen() {
                   hitSlop={8}
                   disabled={index === 0 || rotatingId !== null}
                   onPress={() => movePage(page.id, -1)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Move page up"
                   style={({ pressed }) => [styles.action, pressed && styles.pressed, (index === 0 || rotatingId !== null) && styles.disabled]}>
                   <Ionicons name="arrow-up" size={18} color={colors.text} />
                 </Pressable>
@@ -83,12 +91,16 @@ export default function PagesScreen() {
                   hitSlop={8}
                   disabled={index === pages.length - 1 || rotatingId !== null}
                   onPress={() => movePage(page.id, 1)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Move page down"
                   style={({ pressed }) => [styles.action, pressed && styles.pressed, (index === pages.length - 1 || rotatingId !== null) && styles.disabled]}>
                   <Ionicons name="arrow-down" size={18} color={colors.text} />
                 </Pressable>
                 <Pressable
                   hitSlop={8}
                   onPress={() => onRotate(page)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Rotate page"
                   disabled={rotatingId !== null}
                   style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
                   {rotatingId === page.id ? (
@@ -100,6 +112,8 @@ export default function PagesScreen() {
                 <Pressable
                   hitSlop={8}
                   onPress={() => onRecrop(page)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Re-crop page"
                   disabled={rotatingId !== null}
                   style={({ pressed }) => [styles.action, pressed && styles.pressed, rotatingId === page.id && styles.disabled]}>
                   <Ionicons name="crop-outline" size={18} color={colors.text} />
@@ -107,6 +121,8 @@ export default function PagesScreen() {
                 <Pressable
                   hitSlop={8}
                   onPress={() => onDelete(page)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete page"
                   disabled={rotatingId !== null}
                   style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
                   <Ionicons name="trash-outline" size={18} color={colors.destructive} />
@@ -124,12 +140,14 @@ export default function PagesScreen() {
           label="Filters"
           icon="color-filter-outline"
           onPress={() => router.push('/filter')}
+          variant="ghost"
           style={styles.ghostBtn}
         />
         <GradientButton
           label="Add"
           icon="add"
           onPress={() => router.push('/capture')}
+          variant="ghost"
           style={styles.ghostBtn}
         />
         <GradientButton label="Continue to export" onPress={() => router.push('/export')} style={styles.primary} />

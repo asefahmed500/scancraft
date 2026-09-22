@@ -229,6 +229,8 @@ export default function LibraryScreen() {
           <Pressable
             hitSlop={12}
             onPress={exitSelection}
+            accessibilityRole="button"
+            accessibilityLabel="Exit selection"
             style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
             <Ionicons name="close" size={22} color={colors.text} />
           </Pressable>
@@ -237,6 +239,8 @@ export default function LibraryScreen() {
             hitSlop={12}
             disabled={busy}
             onPress={onExportSelected}
+            accessibilityRole="button"
+            accessibilityLabel="Export selected as PDF"
             style={({ pressed }) => [styles.iconButton, busy && styles.disabled, pressed && styles.pressed]}>
             <Ionicons name="share-outline" size={21} color={colors.text} />
           </Pressable>
@@ -244,6 +248,8 @@ export default function LibraryScreen() {
             hitSlop={12}
             disabled={busy}
             onPress={onDeleteSelected}
+            accessibilityRole="button"
+            accessibilityLabel="Delete selected"
             style={({ pressed }) => [styles.iconButton, busy && styles.disabled, pressed && styles.pressed]}>
             <Ionicons name="trash-outline" size={20} color={colors.destructive} />
           </Pressable>
@@ -252,7 +258,7 @@ export default function LibraryScreen() {
         <View style={styles.header}>
           <Text style={[type.h1]}>ScanCraft</Text>
           <Link href="/settings" asChild>
-            <Pressable hitSlop={12} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+            <Pressable hitSlop={12} accessibilityRole="button" accessibilityLabel="Open settings" style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
               <Ionicons name="settings-outline" size={22} color={colors.text} />
             </Pressable>
           </Link>
@@ -272,7 +278,7 @@ export default function LibraryScreen() {
               autoCorrect={false}
             />
             {query.length > 0 && (
-              <Pressable hitSlop={8} onPress={() => setQuery('')}>
+              <Pressable hitSlop={8} onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search">
                 <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
               </Pressable>
             )}

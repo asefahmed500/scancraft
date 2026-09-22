@@ -18,7 +18,7 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScreenHeader } from '@/components/screen-header';
 import { GradientButton } from '@/components/gradient-button';import { useSession } from '@/lib/session';
-import { cropRotate, downscaleIfNeeded, EDIT_MAX_DIM } from '@/lib/imaging';
+import { cropRotate, downscaleIfNeeded, makeThumb, EDIT_MAX_DIM } from '@/lib/imaging';
 import { safeDeleteCacheFile } from '@/lib/storage';
 import { colors, radius, spacing, type } from '@/lib/theme';
 import type { CropRect } from '@/lib/types';
@@ -305,11 +305,18 @@ export default function ReviewScreen() {
         return;
       }
       if (src !== uri) safeDeleteCacheFile(src);
+      let thumb: string | undefined;
+      try {
+        thumb = await makeThumb(result.uri);
+      } catch {
+        thumb = undefined; // fall back to the full image in lists
+      }
       const page = {
         id: asString(params.pageId) || `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
         uri: result.uri,
         width: result.width,
         height: result.height,
+        thumb,
       };
       // Everything below succeeded — intermediates can go.
       if (ownedUriRef.current) safeDeleteCacheFile(ownedUriRef.current);
@@ -415,6 +422,7 @@ export default function ReviewScreen() {
           icon="refresh"
           onPress={() => router.back()}
           disabled={busy}
+          variant="ghost"
           style={styles.ghostBtn}
         />
         <GradientButton
@@ -422,6 +430,7 @@ export default function ReviewScreen() {
           icon="sync-outline"
           onPress={onRotate}
           disabled={busy}
+          variant="ghost"
           style={styles.ghostBtn}
         />
         <GradientButton

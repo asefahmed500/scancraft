@@ -17,25 +17,21 @@ export type ImageResult = { uri: string; width: number; height: number };
 // edit pass can exhaust memory on low-end devices (crop crash source).
 export const EDIT_MAX_DIM = 3024;
 
+// Crop + rotate are rasterized through the declarative Canvas pipeline
+// (EXIF-consistent, crash-free) — NOT ImageManipulator, which natively
+// crashes on EXIF-rotated camera photos.
 export async function cropRotate(
   srcUri: string,
   crop: CropRect | null,
   rotation: number,
 ): Promise<ImageResult> {
-  const ctx = ImageManipulator.manipulate(srcUri);
-  if (crop) {
-    ctx.crop({
-      originX: Math.max(0, Math.round(crop.x)),
-      originY: Math.max(0, Math.round(crop.y)),
-      width: Math.max(1, Math.round(crop.width)),
-      height: Math.max(1, Math.round(crop.height)),
-    });
-  }
-  if (rotation % 360 !== 0) ctx.rotate(rotation);
-  const ref = await ctx.renderAsync();
-  const result = await ref.saveAsync({ format: SaveFormat.JPEG, compress: 0.95 });
-  ref.release();
-  return result;
+  return getRasterizer().crop({
+    kind: 'crop',
+    uri: srcUri,
+    rect: crop,
+    rotation,
+    quality: 0.95,
+  });
 }
 
 export async function makeThumb(srcUri: string): Promise<string> {
@@ -73,7 +69,14 @@ export async function applyLook(
   quality: number,
   format: 'jpg' | 'png',
 ): Promise<ImageResult> {
-  return getRasterizer().rasterize({ uri: srcUri, matrix, maxDim, quality, format });
+  return getRasterizer().rasterize({
+    kind: 'look',
+    uri: srcUri,
+    matrix,
+    maxDim,
+    quality,
+    format,
+  });
 }
 
 // Builds a real PDF by embedding the JPEG bytes directly with pdf-lib —

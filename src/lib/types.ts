@@ -10,6 +10,7 @@ export type SessionPage = {
   uri: string;
   width: number;
   height: number;
+  thumb?: string;
 };
 
 export type FilterId = 'original' | 'grayscale' | 'bw' | 'vivid' | 'magic';

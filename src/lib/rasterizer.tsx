@@ -12,6 +12,7 @@ import { View } from 'react-native';
 import {
   Canvas,
   ColorMatrix,
+  Group,
   Image as SkiaImage,
   ImageFormat,
   makeImageFromView,
@@ -20,7 +21,8 @@ import {
 import { File } from 'expo-file-system';
 import { cacheDirUri, ensureCacheDir, safeDeleteCacheFile } from './storage';
 
-export type RasterizeRequest = {
+export type LookRequest = {
+  kind: 'look';
   uri: string;
   matrix: number[] | null;
   maxDim: number;
@@ -28,13 +30,28 @@ export type RasterizeRequest = {
   format: 'jpg' | 'png';
 };
 
-export type RasterizerHandle = {
-  rasterize: (req: RasterizeRequest) => Promise<{ uri: string; width: number; height: number }>;
+export type CropRequest = {
+  kind: 'crop';
+  uri: string;
+  rect: { x: number; y: number; width: number; height: number } | null;
+  rotation: number;
+  quality: number;
 };
 
-type PendingRequest = RasterizeRequest & {
-  resolve: (r: { uri: string; width: number; height: number }) => void;
+export type RasterizeRequest = LookRequest | CropRequest;
+
+export type ImageResult = { uri: string; width: number; height: number };
+
+type Pending = (LookRequest | CropRequest) & {
+  resolve: (r: ImageResult) => void;
   reject: (e: Error) => void;
+};
+
+const RASTERIZE_TIMEOUT_MS = 15000;
+
+export type RasterizerHandle = {
+  rasterize: (req: LookRequest) => Promise<ImageResult>;
+  crop: (req: CropRequest) => Promise<ImageResult>;
 };
 
 let activeRasterizer: RasterizerHandle | null = null;
@@ -58,41 +75,82 @@ export function useRasterizer(): RasterizerHandle {
   return value;
 }
 
-// Exports are rasterized through a hidden, declarative <Canvas> — the same
-// rendering path as the on-screen filter preview — then snapshotted. The
-// imperative offscreen Surface path produces black frames on some devices,
-// so it is deliberately not used.
+function withTimeout(promise: Promise<ImageResult>): Promise<ImageResult> {
+  return Promise.race([
+    promise,
+    new Promise<ImageResult>((_, reject) =>
+      setTimeout(() => reject(new Error('Image processing timed out. Try again.')), RASTERIZE_TIMEOUT_MS),
+    ),
+  ]);
+}
+
+// All image processing is rasterized through a hidden, declarative <Canvas> —
+// the same rendering path as the on-screen filter preview — then snapshotted.
+// The imperative offscreen Surface path produces black frames on some devices,
+// and ImageManipulator crop/rotate can natively crash on EXIF-rotated camera
+// photos, so neither is used.
 export function ImageRasterizerProvider({ children }: { children: ReactNode }) {
   const viewRef = useRef<View>(null);
-  const [request, setRequest] = useState<PendingRequest | null>(null);
+  const [request, setRequest] = useState<Pending | null>(null);
   const image = useImage(request?.uri ?? null);
 
-  const rasterize = useCallback(
+  const run = useCallback(
     (req: RasterizeRequest) =>
-      new Promise<{ uri: string; width: number; height: number }>((resolve, reject) => {
-        setRequest({ ...req, resolve, reject });
-      }),
+      withTimeout(
+        new Promise<ImageResult>((resolve, reject) => {
+          setRequest({ ...req, resolve, reject });
+        }),
+      ),
     [],
   );
 
-  const handle = useMemo<RasterizerHandle>(() => ({ rasterize }), [rasterize]);
+  const handle = useMemo<RasterizerHandle>(
+    () => ({
+      rasterize: (req: LookRequest) => run(req),
+      crop: (req: CropRequest) => run(req),
+    }),
+    [run],
+  );
 
   useEffect(() => {
     registerRasterizer(handle);
     return () => registerRasterizer(null);
   }, [handle]);
 
-  // Size the canvas to the decoded image, capped at maxDim — derived
-  // during render, no effect needed.
-  const dims = useMemo(() => {
-    if (!request || !image) return null;
+  // Output geometry, derived during render (no effects for state).
+  const { dims, rect, rotation } = useMemo(() => {
+    if (!request || !image) return { dims: null, rect: null, rotation: 0 };
     const iw = image.width();
     const ih = image.height();
-    const scale = Math.min(1, request.maxDim / Math.max(iw, ih));
+    if (request.kind === 'look') {
+      const scale = Math.min(1, request.maxDim / Math.max(iw, ih));
+      return {
+        dims: { w: Math.max(1, Math.round(iw * scale)), h: Math.max(1, Math.round(ih * scale)) },
+        rect: null,
+        rotation: 0,
+      };
+    }
+    const r = request.rect ?? { x: 0, y: 0, width: iw, height: ih };
+    const rot = ((Math.round(request.rotation) % 360) + 360) % 360;
+    const swap = rot === 90 || rot === 270;
     return {
-      w: Math.max(1, Math.round(iw * scale)),
-      h: Math.max(1, Math.round(ih * scale)),
+      dims: {
+        w: Math.max(1, Math.round(swap ? r.height : r.width)),
+        h: Math.max(1, Math.round(swap ? r.width : r.height)),
+      },
+      rect: r,
+      rotation: rot,
     };
+  }, [request, image]);
+
+  // Decode-failure path: if the image never loads, fail fast with a useful
+  // message instead of waiting for the generic timeout.
+  useEffect(() => {
+    if (!request || image) return;
+    const t = setTimeout(() => {
+      request.reject(new Error("We couldn't read this image. Try retaking the page."));
+    }, 6000);
+    return () => clearTimeout(t);
   }, [request, image]);
 
   // Once painted, snapshot the hidden view and persist the bytes.
@@ -109,14 +167,16 @@ export function ImageRasterizerProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         const snapshot = await makeImageFromView(viewRef);
         if (!snapshot) throw new Error('Could not capture the rendered image');
+        const format = req.kind === 'look' ? req.format : 'jpg';
+        const quality = req.kind === 'look' ? req.quality : req.quality;
         const bytes = snapshot.encodeToBytes(
-          req.format === 'png' ? ImageFormat.PNG : ImageFormat.JPEG,
-          Math.round(req.quality * 100),
+          format === 'png' ? ImageFormat.PNG : ImageFormat.JPEG,
+          Math.round(quality * 100),
         );
         ensureCacheDir();
         const out = new File(
           cacheDirUri(),
-          `scancraft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${req.format}`,
+          `scancraft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${format}`,
         );
         out.write(bytes);
         const result = { uri: out.uri, width: dims.w, height: dims.h };
@@ -154,9 +214,32 @@ export function ImageRasterizerProvider({ children }: { children: ReactNode }) {
         }}>
         {request && image && dims && (
           <Canvas style={{ width: dims.w, height: dims.h }}>
-            <SkiaImage image={image} fit="fill" x={0} y={0} width={dims.w} height={dims.h}>
-              {request.matrix ? <ColorMatrix matrix={request.matrix} /> : null}
-            </SkiaImage>
+            {request.kind === 'look' ? (
+              <SkiaImage image={image} fit="fill" x={0} y={0} width={dims.w} height={dims.h}>
+                {request.matrix ? <ColorMatrix matrix={request.matrix} /> : null}
+              </SkiaImage>
+            ) : (
+              <Group
+                transform={[
+                  ...(rotation === 90
+                    ? [{ translate: [dims.w, 0] as [number, number] }, { rotate: Math.PI / 2 }]
+                    : rotation === 180
+                      ? [{ translate: [dims.w, dims.h] as [number, number] }, { rotate: Math.PI }]
+                      : rotation === 270
+                        ? [{ translate: [0, dims.h] as [number, number] }, { rotate: -Math.PI / 2 }]
+                        : []),
+                  { translate: [-(rect?.x ?? 0), -(rect?.y ?? 0)] as [number, number] },
+                ]}>
+                <SkiaImage
+                  image={image}
+                  fit="none"
+                  x={0}
+                  y={0}
+                  width={image.width()}
+                  height={image.height()}
+                />
+              </Group>
+            )}
           </Canvas>
         )}
       </View>

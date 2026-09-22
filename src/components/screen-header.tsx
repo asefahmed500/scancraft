@@ -18,6 +18,8 @@ export function ScreenHeader({ title, onBack, right, left, style, titleStyle }: 
         <Pressable
           onPress={onBack}
           hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
           style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>

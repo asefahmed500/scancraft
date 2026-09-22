@@ -41,6 +41,7 @@ export default function ExportScreen() {
   const [format, setFormat] = useState<ExportFormat>('pdf');
   const [quality, setQuality] = useState<QualityPreset>('medium');
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState('');
   const [result, setResult] = useState<{ doc: StoredDocument; message: string } | null>(null);
   const busyRef = useRef(false);
   const settingsLoadedRef = useRef(false);
@@ -81,13 +82,16 @@ export default function ExportScreen() {
     if (busyRef.current || pages.length === 0) return;
     busyRef.current = true;
     setBusy(true);
+    setProgress('');
     let doc: StoredDocument | null = null;
     try {
       const matrix = matrixFor(filterId, adjustments);
       const preset = QUALITY_PRESETS[quality];
       const imageFormat = format === 'png' ? 'png' : 'jpg';
       const processed = [];
-      for (const page of pages) {
+      for (let i = 0; i < pages.length; i++) {
+        setProgress(`Enhancing page ${i + 1} of ${pages.length}…`);
+        const page = pages[i];
         const out = await applyLook(page.uri, matrix, preset.maxDim, preset.quality, imageFormat);
         processed.push({ uri: out.uri, width: out.width, height: out.height });
       }
@@ -110,6 +114,7 @@ export default function ExportScreen() {
     try {
       if (share) {
         if (format === 'pdf') {
+          setProgress('Creating PDF…');
           const pdfUri = await buildPdf(doc.pages);
           if (await Sharing.isAvailableAsync()) {
             try {
@@ -242,13 +247,14 @@ export default function ExportScreen() {
           label="Save to Library only"
           onPress={() => save(false)}
           disabled={busy}
+          variant="ghost"
           style={styles.ghostBtn}
         />
       </View>
       {busy && (
         <View style={styles.busyOverlay}>
           <ActivityIndicator color={colors.accent} />
-          <Text style={[type.body, styles.busyText]}>Processing pages…</Text>
+          <Text style={[type.body, styles.busyText]}>{progress || 'Processing…'}</Text>
         </View>
       )}
     </SafeAreaView>
