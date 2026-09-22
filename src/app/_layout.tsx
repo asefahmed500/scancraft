@@ -48,6 +48,7 @@ export default function RootLayout() {
               <Stack.Screen name="pages" />
               <Stack.Screen name="export" />
               <Stack.Screen name="settings" />
+              <Stack.Screen name="files" />
               <Stack.Screen name="document/[id]" />
             </Stack>
           </ImageRasterizerProvider>

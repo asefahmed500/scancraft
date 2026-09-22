@@ -271,3 +271,37 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+export type StoredFileEntry = { uri: string; name: string; bytes: number };
+
+export type StoredDocFiles = {
+  id: string;
+  name: string;
+  createdAt: number;
+  bytes: number;
+  files: StoredFileEntry[];
+};
+
+// Full on-device inventory for the in-app storage browser: every document
+// directory with its actual files and sizes, straight from disk.
+export async function listDocumentFiles(): Promise<StoredDocFiles[]> {
+  const docs = await loadIndex();
+  const out: StoredDocFiles[] = [];
+  for (const doc of docs) {
+    const dir = documentDir(doc.id);
+    const files: StoredFileEntry[] = [];
+    let bytes = 0;
+    if (dir.exists) {
+      for (const node of dir.list()) {
+        if (node instanceof File) {
+          const name = node.uri.split('/').pop() ?? node.uri;
+          files.push({ uri: node.uri, name, bytes: node.size });
+          bytes += node.size;
+        }
+      }
+    }
+    files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    out.push({ id: doc.id, name: doc.name, createdAt: doc.createdAt, bytes, files });
+  }
+  return out;
+}

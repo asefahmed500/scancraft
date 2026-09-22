@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { ScreenHeader } from '@/components/screen-header';
@@ -184,10 +185,23 @@ export default function SettingsScreen() {
             <Text style={[type.body, styles.rowLabel]}>Temporary cache</Text>
             <Text style={[type.caption, styles.usageValue]}>{formatBytes(tmpBytes)}</Text>
           </View>
-          <Pressable style={({ pressed }) => [styles.rowButton, pressed && styles.pressed]} onPress={onClearCache}>
-            <Text style={[type.label, styles.rowActionText]}>
-              Clear cache
-            </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear temporary cache"
+            onPress={onClearCache}
+            style={({ pressed }) => [styles.rowButton, pressed && styles.pressed]}>
+            <Text style={[type.label, styles.rowActionText]}>Clear cache</Text>
+          </Pressable>
+          <View style={styles.divider} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Browse stored files"
+            onPress={() => router.push('/files')}
+            style={({ pressed }) => [styles.rowButton, pressed && styles.pressed]}>
+            <View style={styles.browseRow}>
+              <Text style={[type.label, styles.rowActionText]}>Browse files</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+            </View>
           </Pressable>
           <View style={styles.divider} />
           <Pressable style={({ pressed }) => [styles.rowButton, pressed && styles.pressed]} onPress={onDeleteAll}>
@@ -272,6 +286,11 @@ const styles = StyleSheet.create({
   rowButton: {
     minHeight: 36,
     justifyContent: 'center',
+  },
+  browseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   rowActionText: {
     color: colors.text,
