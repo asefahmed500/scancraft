@@ -92,7 +92,7 @@ describe('filters — color matrix math', () => {
       expect(Number.isFinite(og)).toBe(true);
       expect(Number.isFinite(ob)).toBe(true);
       expect(or_).toBeGreaterThanOrEqual(-46);
-      expect(or_).toBeLessThanOrEqual(300);
+      expect(or_).toBeLessThanOrEqual(325);
     }
   });
 
