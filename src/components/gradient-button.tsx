@@ -35,14 +35,16 @@ export function GradientButton({ label, onPress, disabled, busy, icon, style, va
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.fill}>
-        {busy ? (
-          <ActivityIndicator color={colors.text} />
-        ) : (
-          <View style={styles.row}>
-            {icon ? <Ionicons name={icon} size={17} color={ghost ? colors.textSecondary : colors.text} /> : null}
-            <Text style={[type.label, ghost ? styles.labelGhost : styles.label]}>{label}</Text>
-          </View>
-        )}
+        <View style={styles.row}>
+          {busy ? (
+            <ActivityIndicator size="small" color={ghost ? colors.textSecondary : colors.text} />
+          ) : (
+            icon ? <Ionicons name={icon} size={17} color={ghost ? colors.textSecondary : colors.text} /> : null
+          )}
+          <Text style={[type.label, ghost ? styles.labelGhost : styles.label]} numberOfLines={1}>
+            {label}
+          </Text>
+        </View>
       </LinearGradient>
     </Pressable>
   );

@@ -102,7 +102,7 @@ export default function PagesScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Rotate page"
                   disabled={rotatingId !== null}
-                  style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
+                  style={({ pressed }) => [styles.action, rotatingId !== null && styles.disabled, pressed && styles.pressed]}>
                   {rotatingId === page.id ? (
                     <ActivityIndicator size="small" color={colors.accent} />
                   ) : (
@@ -115,7 +115,7 @@ export default function PagesScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Re-crop page"
                   disabled={rotatingId !== null}
-                  style={({ pressed }) => [styles.action, pressed && styles.pressed, rotatingId === page.id && styles.disabled]}>
+                  style={({ pressed }) => [styles.action, rotatingId !== null && styles.disabled, pressed && styles.pressed]}>
                   <Ionicons name="crop-outline" size={18} color={colors.text} />
                 </Pressable>
                 <Pressable
@@ -124,7 +124,7 @@ export default function PagesScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Delete page"
                   disabled={rotatingId !== null}
-                  style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
+                  style={({ pressed }) => [styles.action, rotatingId !== null && styles.disabled, pressed && styles.pressed]}>
                   <Ionicons name="trash-outline" size={18} color={colors.destructive} />
                 </Pressable>
               </View>

@@ -56,15 +56,37 @@ export type FilterPreset = {
   base: Matrix;
 };
 
+// Tuned for document scanning: paper should land near white, ink near
+// black. B&W uses a strong contrast anchor (2.1) so faint pencil (90-110)
+// separates clearly from paper (200+) — Skia clamps the output range.
 export const FILTER_PRESETS: FilterPreset[] = [
   { id: 'original', label: 'Original', base: IDENTITY },
+  {
+    id: 'auto',
+    label: 'Auto',
+    base: multiply(multiply(saturationMatrix(1.18), contrastMatrix(1.3)), brightnessMatrix(1.05)),
+  },
   { id: 'grayscale', label: 'Grayscale', base: desaturateMatrix() },
-  { id: 'bw', label: 'B&W', base: multiply(desaturateMatrix(), contrastMatrix(1.35)) },
+  {
+    id: 'bw',
+    label: 'B&W',
+    base: multiply(desaturateMatrix(), multiply(contrastMatrix(2.1), brightnessMatrix(1.02))),
+  },
   { id: 'vivid', label: 'Color', base: saturationMatrix(1.35) },
   {
     id: 'magic',
     label: 'Magic Color',
-    base: multiply(multiply(saturationMatrix(1.15), contrastMatrix(1.18)), brightnessMatrix(1.04)),
+    base: multiply(multiply(saturationMatrix(1.22), contrastMatrix(1.35)), brightnessMatrix(1.06)),
+  },
+  {
+    id: 'highcontrast',
+    label: 'High contrast',
+    base: multiply(saturationMatrix(0.9), contrastMatrix(1.75)),
+  },
+  {
+    id: 'lowlight',
+    label: 'Low light',
+    base: multiply(multiply(saturationMatrix(1.05), contrastMatrix(1.1)), brightnessMatrix(1.3)),
   },
 ];
 

@@ -12,7 +12,7 @@ off-white CamScanner-style flow with Geist + Inter typography.
 - **Filter & enhance** — live Skia-powered previews: Original, Grayscale, B&W, Color, Magic Color,
   plus brightness / contrast / saturation sliders
 - **Multi-page sessions** — reorder, rotate, re-crop, or delete pages before export
-- **Export** — PDF (via `expo-print`) or JPG/PNG saved to your photo library, with share-sheet
+- **Export** — PDF (via pdf-lib) or JPG/PNG saved to your photo library, with share-sheet
   integration; quality presets control resolution and compression
 - **Settings** — default camera, default export format/quality, storage usage, clear cache,
   delete all documents
@@ -23,8 +23,8 @@ library index; nothing is uploaded.
 ## Stack
 
 - Expo SDK 57, React Native 0.86, TypeScript, expo-router (file-based navigation)
-- `expo-camera` capture, `expo-image-manipulator` crop/rotate, `@shopify/react-native-skia`
-  color-matrix filters, `expo-print` PDF, `expo-media-library` + `expo-sharing` export,
+- `expo-camera` capture, Skia Canvas crop/rotate, `expo-image-manipulator` thumbs/downscale, `@shopify/react-native-skia`
+  color-matrix filters, pdf-lib PDF, `expo-media-library` + `expo-sharing` export,
   `expo-file-system` persistence
 - `react-native-reanimated` + `react-native-gesture-handler` for the crop interaction
 

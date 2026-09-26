@@ -5,19 +5,21 @@ import { colors, type } from '@/lib/theme';
 type Props = {
   title: string;
   onBack?: () => void;
+  backDisabled?: boolean;
   right?: React.ReactNode;
   left?: React.ReactNode;
   style?: ViewStyle;
   titleStyle?: TextStyle;
 };
 
-export function ScreenHeader({ title, onBack, right, left, style, titleStyle }: Props) {
+export function ScreenHeader({ title, onBack, backDisabled, right, left, style, titleStyle }: Props) {
   return (
     <View style={[styles.row, style]}>
       {onBack ? (
         <Pressable
           onPress={onBack}
           hitSlop={12}
+          disabled={backDisabled}
           accessibilityRole="button"
           accessibilityLabel="Go back"
           style={({ pressed }) => [styles.back, pressed && styles.pressed]}>

@@ -11,22 +11,29 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { ScreenHeader } from '@/components/screen-header';
 import {
   cacheBytes,
   clearCache,
-  deleteDocument,
+  deleteDocuments,
   formatBytes,
   libraryBytes,
   listDocumentFiles,
+  loadIndex,
+  purgeAllDeleted,
+  restoreDocument,
+  softDeleteDocuments,
   type StoredDocFiles,
 } from '@/lib/storage';
+import type { StoredDocument } from '@/lib/types';
 import { colors, fonts, radius, spacing, type } from '@/lib/theme';
 
 const LIBRARY_BUDGET = 512 * 1024 * 1024;
 
 export default function FilesScreen() {
   const [docs, setDocs] = useState<StoredDocFiles[]>([]);
+  const [trash, setTrash] = useState<StoredDocument[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [tmpBytes, setTmpBytes] = useState(0);
@@ -34,6 +41,8 @@ export default function FilesScreen() {
   const reload = useCallback(async () => {
     const list = await listDocumentFiles();
     setDocs(list);
+    const all = await loadIndex();
+    setTrash(all.filter((d) => d.deleted));
     setTmpBytes(cacheBytes());
     setLoaded(true);
   }, []);
@@ -45,13 +54,61 @@ export default function FilesScreen() {
   );
 
   const onDeleteDoc = (doc: StoredDocFiles) => {
-    Alert.alert('Delete document?', `"${doc.name}" and its files will be permanently removed.`, [
+    Alert.alert('Move to Recently Deleted?', `You can restore "${doc.name}" from the bin below.`, [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Delete',
+        text: 'Move',
         style: 'destructive',
         onPress: async () => {
-          await deleteDocument(doc.id);
+          try {
+            await softDeleteDocuments([doc.id]);
+          } catch {
+            Alert.alert('Delete failed', 'Something went wrong. Please try again.');
+          }
+          await reload();
+        },
+      },
+    ]);
+  };
+
+  const onRestore = async (doc: StoredDocument) => {
+    try {
+      await restoreDocument(doc.id);
+    } catch {
+      Alert.alert('Restore failed', 'Something went wrong. Please try again.');
+    }
+    await reload();
+  };
+
+  const onPurge = (doc: StoredDocument) => {
+    Alert.alert('Delete permanently?', `"${doc.name}" and its files will be gone for good.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete permanently',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteDocuments([doc.id]);
+          } catch {
+            Alert.alert('Delete failed', 'Something went wrong. Please try again.');
+          }
+          await reload();
+        },
+      },
+    ]);
+  };
+
+  const onEmptyBin = () => {
+    Alert.alert('Empty Recently Deleted?', 'Everything in the bin will be permanently deleted.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Empty bin',
+        style: 'destructive',
+        onPress: async () => {
+          const n = await purgeAllDeleted();
+          if (n > 0) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+          }
           await reload();
         },
       },
@@ -174,6 +231,63 @@ export default function FilesScreen() {
               </View>
             );
           })
+        )}
+
+        {loaded && trash.length > 0 && (
+          <View style={styles.binSection}>
+            <View style={styles.binHeader}>
+              <Text style={[type.label, styles.binTitle]}>
+                Recently deleted ({trash.length})
+              </Text>
+              <Pressable
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Empty recently deleted"
+                onPress={onEmptyBin}
+                style={({ pressed }) => [pressed && styles.pressed]}>
+                <Text style={[type.caption, styles.binEmpty]}>Empty bin</Text>
+              </Pressable>
+            </View>
+            {trash.map((doc) => {
+              const date = new Date(doc.deletedAt ?? doc.createdAt).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+              });
+              return (
+                <View key={doc.id} style={styles.binRow}>
+                  <View style={styles.info}>
+                    <Text style={[type.label, styles.docName]} numberOfLines={1}>
+                      {doc.name}
+                    </Text>
+                    <Text style={[type.caption, styles.docMeta]}>
+                      Deleted {date} · {doc.pages.length}{' '}
+                      {doc.pages.length === 1 ? 'page' : 'pages'}
+                    </Text>
+                  </View>
+                  <Pressable
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Restore ${doc.name}`}
+                    onPress={() => onRestore(doc)}
+                    style={({ pressed }) => [styles.binAction, pressed && styles.pressed]}>
+                    <Ionicons name="refresh" size={14} color={colors.text} />
+                    <Text style={[type.caption, styles.binActionText]}>Restore</Text>
+                  </Pressable>
+                  <Pressable
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${doc.name} permanently`}
+                    onPress={() => onPurge(doc)}
+                    style={({ pressed }) => [styles.binAction, pressed && styles.pressed]}>
+                    <Ionicons name="trash-outline" size={14} color={colors.destructive} />
+                    <Text style={[type.caption, styles.binActionText, { color: colors.destructive }]}>
+                      Delete
+                    </Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -312,6 +426,47 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   docActionText: {
+    color: colors.text,
+  },
+  binSection: {
+    marginTop: spacing.m,
+  },
+  binHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.s,
+  },
+  binTitle: {
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+  },
+  binEmpty: {
+    color: colors.destructive,
+  },
+  binRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.m,
+    padding: spacing.s,
+    marginBottom: spacing.s,
+  },
+  binAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 36,
+    paddingHorizontal: spacing.s,
+    borderRadius: radius.s,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  binActionText: {
     color: colors.text,
   },
 });

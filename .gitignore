@@ -36,13 +36,12 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-example
 
 # generated native folders
 /ios
 /android
 
-# signing keystore — never commit
+# signing keystore ï¿½ never commit
 android/app/scancraft-release.keystore
 *.keystore
 # eas simulator session token

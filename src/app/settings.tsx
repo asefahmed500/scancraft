@@ -8,11 +8,12 @@ import { Segmented } from '@/components/segmented';
 import {
   cacheBytes,
   clearCache,
-  deleteAllDocuments,
   formatBytes,
   libraryBytes,
+  loadActiveIndex,
   loadSettings,
   saveSettings,
+  softDeleteDocuments,
 } from '@/lib/storage';
 import { colors, radius, spacing, type } from '@/lib/theme';
 import type { ExportFormat, QualityPreset } from '@/lib/types';
@@ -82,18 +83,29 @@ export default function SettingsScreen() {
     setTmpBytes(cacheBytes());
   };
 
+  const [wiping, setWiping] = useState(false);
+
   const onDeleteAll = () => {
+    if (wiping) return;
     Alert.alert(
-      'Delete all documents?',
-      'Every saved scan will be permanently removed from this device.',
+      'Move all documents to Recently Deleted?',
+      'They can be restored from Files › Recently deleted.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete all',
+          text: 'Move all',
           style: 'destructive',
-          onPress: () => {
-            deleteAllDocuments();
-            setLibBytes(libraryBytes());
+          onPress: async () => {
+            setWiping(true);
+            try {
+              const active = await loadActiveIndex();
+              await softDeleteDocuments(active.map((d) => d.id));
+              setLibBytes(libraryBytes());
+            } catch {
+              Alert.alert('Failed', 'Could not move documents. Please try again.');
+            } finally {
+              setWiping(false);
+            }
           },
         },
       ],
@@ -204,7 +216,7 @@ export default function SettingsScreen() {
             </View>
           </Pressable>
           <View style={styles.divider} />
-          <Pressable style={({ pressed }) => [styles.rowButton, pressed && styles.pressed]} onPress={onDeleteAll}>
+          <Pressable onPress={onDeleteAll} disabled={wiping} accessibilityRole="button" accessibilityLabel="Move all documents to Recently Deleted" style={({ pressed }) => [styles.rowButton, (wiping || pressed) && styles.pressed]}>
             <Text style={[type.label, styles.rowDestructiveText]}>
               Delete all documents
             </Text>

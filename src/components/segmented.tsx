@@ -17,6 +17,9 @@ export function Segmented<T extends string>({ options, value, onChange }: Props<
         return (
           <Pressable
             key={option.value}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={option.label}
             onPress={() => onChange(option.value)}
             style={({ pressed }) => [
               styles.option,
@@ -49,7 +52,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 10,
     minHeight: 40,
-    borderRadius: 6,
+    borderRadius: 4,
   },
   optionActive: {
     backgroundColor: colors.surface,

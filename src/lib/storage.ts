@@ -54,6 +54,12 @@ export async function loadIndex(): Promise<StoredDocument[]> {
   return backup ?? [];
 }
 
+// Documents still visible in the library (recycle bin excluded).
+export async function loadActiveIndex(): Promise<StoredDocument[]> {
+  const docs = await loadIndex();
+  return docs.filter((d) => !d.deleted);
+}
+
 export async function saveIndex(docs: StoredDocument[]): Promise<void> {
   ensureDirs();
   // Atomic-ish write: stage to a temp file, keep the previous index as a
@@ -180,6 +186,25 @@ export async function deleteDocument(id: string): Promise<{ deleted: number; fai
   return deleteDocuments([id]);
 }
 
+// Soft delete: the document moves to the recycle bin (files stay on disk).
+export async function softDeleteDocuments(ids: string[]): Promise<void> {
+  const docs = await loadIndex();
+  const now = Date.now();
+  const next = docs.map((d) =>
+    ids.includes(d.id) ? { ...d, deleted: true, deletedAt: now } : d,
+  );
+  await saveIndex(next);
+}
+
+export async function restoreDocument(id: string): Promise<void> {
+  const docs = await loadIndex();
+  const next = docs.map((d) =>
+    d.id === id ? { ...d, deleted: false, deletedAt: undefined } : d,
+  );
+  await saveIndex(next);
+}
+
+// Permanently deletes (files + index entry). Batch: one index rewrite.
 export async function deleteDocuments(
   ids: string[],
 ): Promise<{ deleted: number; failed: number }> {
@@ -197,6 +222,21 @@ export async function deleteDocuments(
   // One index rewrite for the whole batch instead of N.
   await saveIndex(next);
   return { deleted: ids.length - failed, failed };
+}
+
+export async function purgeAllDeleted(): Promise<number> {
+  const docs = await loadIndex();
+  const trashIds = docs.filter((d) => d.deleted).map((d) => d.id);
+  if (trashIds.length > 0) {
+    await deleteDocuments(trashIds);
+  }
+  return trashIds.length;
+}
+
+export async function setFavorite(id: string, favorite: boolean): Promise<void> {
+  const docs = await loadIndex();
+  const next = docs.map((d) => (d.id === id ? { ...d, favorite } : d));
+  await saveIndex(next);
 }
 
 export async function deleteAllDocuments(): Promise<void> {

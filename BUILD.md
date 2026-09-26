@@ -110,8 +110,8 @@ APK lands at:
 android\app\build\outputs\apk\release\app-release.apk
 ```
 
-Release signing uses `android/app/scancraft-release.keystore` (kept out of git —
-ask the owner for the credentials).
+Release signing: EAS manages Android credentials automatically
+(`android/` is generated and not committed — never commit keystores).
 
 ---
 

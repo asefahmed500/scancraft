@@ -91,7 +91,11 @@ export default function CaptureScreen() {
   }));
 
   if (!permission) {
-    return <View style={styles.stage} />;
+    return (
+      <View style={[styles.stage, styles.permissionSpinner]}>
+        <ActivityIndicator color={colors.white} />
+      </View>
+    );
   }
 
   if (!permission.granted) {
@@ -188,6 +192,16 @@ export default function CaptureScreen() {
   };
 
   const pickFromLibrary = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    try {
+      await pickFromLibraryInner();
+    } finally {
+      busyRef.current = false;
+    }
+  };
+
+  const pickFromLibraryInner = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.95,
@@ -229,6 +243,7 @@ export default function CaptureScreen() {
 
       <SafeAreaView style={styles.topBar} edges={['top']}>
         <Pressable
+          hitSlop={6}
           style={({ pressed }) => [styles.roundButton, capturing && styles.shutterBusy, pressed && styles.pressed]}
           onPress={() => router.back()}
           disabled={capturing}
@@ -241,7 +256,8 @@ export default function CaptureScreen() {
           style={({ pressed }) => [styles.fastChip, fastMode && styles.fastChipOn, pressed && styles.pressed]}
           onPress={toggleFastMode}
           accessibilityRole="button"
-          accessibilityLabel="Toggle fast capture">
+          accessibilityLabel="Toggle fast capture"
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
           <Ionicons name="layers-outline" size={14} color={fastMode ? colors.white : 'rgba(255,255,255,0.85)'} />
           <Text style={[type.caption, styles.fastChipText]}>Fast</Text>
         </Pressable>
@@ -249,7 +265,9 @@ export default function CaptureScreen() {
           style={({ pressed }) => [styles.roundButton, pressed && styles.pressed]}
           onPress={() => setFlash((f) => (f === 'off' ? 'on' : f === 'on' ? 'auto' : 'off'))}
           accessibilityRole="button"
-          accessibilityLabel="Toggle flash">
+          accessibilityLabel="Toggle flash"
+          disabled={capturing}
+          hitSlop={6}>
           <Ionicons
             name={flash === 'off' ? 'flash-off' : flash === 'on' ? 'flash' : 'flash-outline'}
             size={22}
@@ -260,7 +278,9 @@ export default function CaptureScreen() {
           style={({ pressed }) => [styles.roundButton, pressed && styles.pressed]}
           onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))}
           accessibilityRole="button"
-          accessibilityLabel="Switch camera">
+          accessibilityLabel="Switch camera"
+          disabled={capturing}
+          hitSlop={6}>
           <Ionicons name="camera-reverse-outline" size={22} color={colors.white} />
         </Pressable>
       </SafeAreaView>
@@ -275,7 +295,8 @@ export default function CaptureScreen() {
             </ScrollView>
             <Pressable style={({ pressed }) => [styles.donePill, pressed && styles.pressed]} onPress={() => router.push('/pages')}
           accessibilityRole="button"
-          accessibilityLabel="Review captured pages">
+          accessibilityLabel="Review captured pages"
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
               <Text style={[type.label, styles.donePillText]}>
                 {pages.length}
               </Text>
@@ -284,7 +305,7 @@ export default function CaptureScreen() {
           </View>
         )}
         <View style={styles.controlsRow}>
-          <Pressable style={({ pressed }) => [styles.sideButton, pressed && styles.pressed]} onPress={pickFromLibrary}
+          <Pressable disabled={capturing} style={({ pressed }) => [styles.sideButton, capturing && styles.shutterBusy, pressed && styles.pressed]} onPress={pickFromLibrary}
           accessibilityRole="button"
           accessibilityLabel="Pick an image from the library">
             <Ionicons name="images-outline" size={26} color={colors.white} />
@@ -317,6 +338,10 @@ const styles = StyleSheet.create({
   },
   permissionSafe: {
     backgroundColor: colors.bg,
+  },
+  permissionSpinner: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   permissionBody: {
     flex: 1,

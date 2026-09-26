@@ -37,7 +37,9 @@ const QUALITY_OPTIONS = [
 
 export default function ExportScreen() {
   const { pages, filterId, adjustments, resetSession } = useSession();
-  const [name, setName] = useState(`Scan ${new Date().toLocaleDateString()}`);
+  const [name, setName] = useState(
+    `Scan_${new Date().toISOString().slice(0, 10)}`,
+  );
   const [format, setFormat] = useState<ExportFormat>('pdf');
   const [quality, setQuality] = useState<QualityPreset>('medium');
   const [busy, setBusy] = useState(false);
@@ -199,7 +201,8 @@ export default function ExportScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScreenHeader
         title="Save document"
-        onBack={busy ? undefined : () => router.back()}
+        onBack={() => router.back()}
+        backDisabled={busy}
         style={styles.header}
         right={
           <Text style={[type.caption, styles.pageCount]}>
@@ -217,6 +220,8 @@ export default function ExportScreen() {
             placeholder="Document name"
             placeholderTextColor={colors.textTertiary}
             editable={!busy}
+            autoCorrect={false}
+            maxLength={80}
           />
         </View>
         <View style={styles.field}>

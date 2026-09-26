@@ -75,7 +75,7 @@ export default function OnboardingScreen() {
         <View style={styles.body}>
           <View style={styles.topRow}>
             <View style={{ flex: 1 }} />
-            <Pressable hitSlop={12} onPress={finish} style={({ pressed }) => pressed && styles.pressed}>
+            <Pressable onPress={finish} style={({ pressed }) => [styles.skipBtn, pressed && styles.pressed]}>
               <Text style={[type.label, styles.skip]}>Skip</Text>
             </Pressable>
           </View>
@@ -145,6 +145,10 @@ const styles = StyleSheet.create({
   },
   skip: {
     color: colors.textSecondary,
+  },
+  skipBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 12,
   },
   slideArea: {
     flex: 1,

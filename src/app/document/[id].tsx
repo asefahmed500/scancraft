@@ -19,7 +19,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/screen-header';
 import { GradientButton } from '@/components/gradient-button';
-import { deleteDocument, loadIndex, safeDeleteCacheFile } from '@/lib/storage';
+import { loadIndex, safeDeleteCacheFile, setFavorite, softDeleteDocuments } from '@/lib/storage';
 import { buildPdf } from '@/lib/imaging';
 import { colors, radius, spacing, type } from '@/lib/theme';
 import type { StoredDocument } from '@/lib/types';
@@ -51,7 +51,7 @@ export default function DocumentScreen() {
 
   const onDelete = () => {
     if (!doc) return;
-    Alert.alert('Delete document?', `"${doc.name}" and its pages will be permanently removed.`, [
+    Alert.alert('Move to Recently Deleted?', `You can restore "${doc.name}" from Files.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -59,7 +59,7 @@ export default function DocumentScreen() {
         onPress: async () => {
           try {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-            await deleteDocument(doc.id);
+            await softDeleteDocuments([doc.id]);
             router.back();
           } catch (error) {
             Alert.alert(
@@ -150,6 +150,7 @@ export default function DocumentScreen() {
   if (!doc) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <ScreenHeader title="Loading…" onBack={() => router.back()} style={styles.header} />
         <View style={[styles.center, { padding: spacing.l }]}>
           <ActivityIndicator color={colors.accent} />
         </View>
@@ -166,9 +167,38 @@ export default function DocumentScreen() {
         onBack={() => router.back()}
         style={styles.header}
         right={
-          <Pressable hitSlop={12} onPress={onDelete} accessibilityRole="button" accessibilityLabel="Delete document" style={({ pressed }) => [styles.trash, pressed && styles.pressed]}>
-            <Ionicons name="trash-outline" size={20} color={colors.destructive} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={doc.favorite ? 'Remove from favorites' : 'Add to favorites'}
+              onPress={async () => {
+                Haptics.selectionAsync().catch(() => {});
+                const next = !doc.favorite;
+                setDoc({ ...doc, favorite: next });
+                try {
+                  await setFavorite(doc.id, next);
+                } catch {
+                  // keep optimistic UI; persistence retried on next toggle
+                }
+              }}
+              style={({ pressed }) => [styles.trash, pressed && styles.pressed]}>
+              <Ionicons
+                name={doc.favorite ? 'star' : 'star-outline'}
+                size={20}
+                color={doc.favorite ? colors.accent : colors.text}
+              />
+            </Pressable>
+            <Pressable
+              hitSlop={12}
+              onPress={onDelete}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Move to Recently Deleted"
+              style={({ pressed }) => [styles.trash, busy && styles.disabled, pressed && styles.pressed]}>
+              <Ionicons name="trash-outline" size={20} color={colors.destructive} />
+            </Pressable>
+          </View>
         }
       />
       <FlatList
@@ -209,6 +239,7 @@ export default function DocumentScreen() {
         <GradientButton
           label="Photos"
           icon="image-outline"
+          busy={busy}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             onSavePhotos();
@@ -230,6 +261,11 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.m,
     paddingVertical: spacing.s,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   trash: {
     width: 32,
@@ -290,7 +326,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   center: {
     flex: 1,

@@ -36,6 +36,7 @@ src/
     filter.tsx    5 Skia color-matrix presets + brightness/contrast/saturation sliders
     pages.tsx     multi-page manager (reorder/rotate/re-crop/delete)
     export.tsx    name/format(PDF|JPG|PNG)/quality → rasterize → persist → share/Photos
+    files.tsx     storage browser (per-doc files, sizes, recycle bin)
     settings.tsx  defaults (facing/format/quality/fastCapture), storage meter, wipe
     document/[id]  saved-doc paged viewer, re-export, delete
     gallery hook-up: first page confirm routes capture → /filter (not /pages)
@@ -71,7 +72,7 @@ src/
    to .bak and shape-validates entries.
 8. React Compiler is ON (`reactCompiler: true`): no setState directly in effects
    (react-hooks/set-state-in-effect), no ref access during render. Exceptions:
-   `react-hooks/immutability` disabled in review.tsx (Reanimated shared values).
+   `react-hooks/immutability` disabled in review/onboarding/logo-reveal (Reanimated).
 9. Async handlers: busyRef (sync) + mountedRef guards; disable buttons while busy.
 10. First captured page confirm routes to /filter; later pages return to capture.
 

@@ -13,7 +13,15 @@ export type SessionPage = {
   thumb?: string;
 };
 
-export type FilterId = 'original' | 'grayscale' | 'bw' | 'vivid' | 'magic';
+export type FilterId =
+  | 'original'
+  | 'auto'
+  | 'grayscale'
+  | 'bw'
+  | 'vivid'
+  | 'magic'
+  | 'highcontrast'
+  | 'lowlight';
 
 export type Adjustments = {
   brightness: number;
@@ -36,6 +44,9 @@ export type StoredDocument = {
   name: string;
   createdAt: number;
   pages: StoredPage[];
+  deleted?: boolean;
+  deletedAt?: number;
+  favorite?: boolean;
 };
 
 export type AppSettings = {

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -15,7 +16,12 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
-import { deleteDocuments, loadIndex, loadSettings, safeDeleteCacheFile } from '@/lib/storage';
+import {
+  loadActiveIndex as loadActiveIndex,
+  loadSettings,
+  safeDeleteCacheFile,
+  softDeleteDocuments,
+} from '@/lib/storage';
 import { buildPdf } from '@/lib/imaging';
 import { GradientButton } from '@/components/gradient-button';
 import { LogoReveal } from '@/components/logo-reveal';
@@ -33,14 +39,20 @@ export default function LibraryScreen() {
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [favOnly, setFavOnly] = useState(false);
   const insets = useSafeAreaInsets();
 
   const reload = useCallback(async (showSpinner = false) => {
     if (showSpinner) setRefreshing(true);
-    const list = await loadIndex();
-    setDocs(list);
-    setLoaded(true);
-    if (showSpinner) setRefreshing(false);
+    try {
+      const list = await loadActiveIndex();
+      setDocs(list);
+    } catch {
+      Alert.alert('Load failed', 'Could not read your library. Pull to retry.');
+    } finally {
+      setLoaded(true);
+      if (showSpinner) setRefreshing(false);
+    }
   }, []);
 
   useFocusEffect(
@@ -65,9 +77,8 @@ export default function LibraryScreen() {
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = q
-      ? docs.filter((d) => d.name.toLowerCase().includes(q))
-      : docs;
+    let filtered = favOnly ? docs.filter((d) => d.favorite) : docs;
+    if (q) filtered = filtered.filter((d) => d.name.toLowerCase().includes(q));
     const sorted = [...filtered];
     if (sort === 'name') {
       sorted.sort((a, b) => a.name.localeCompare(b.name));
@@ -75,7 +86,7 @@ export default function LibraryScreen() {
       sorted.sort((a, b) => b.createdAt - a.createdAt);
     }
     return sorted;
-  }, [docs, query, sort]);
+  }, [docs, query, sort, favOnly]);
 
   const selecting = selected.length > 0;
 
@@ -99,9 +110,10 @@ export default function LibraryScreen() {
   const exitSelection = () => setSelected([]);
 
   const onDeleteSelected = () => {
+    if (busy || selected.length === 0) return;
     Alert.alert(
-      selected.length === 1 ? 'Delete document?' : `Delete ${selected.length} documents?`,
-      'This cannot be undone.',
+      selected.length === 1 ? 'Move to Recently Deleted?' : `Move ${selected.length} documents to Recently Deleted?`,
+      'You can restore them later from Files › Recently deleted.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -111,15 +123,7 @@ export default function LibraryScreen() {
             setBusy(true);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
             try {
-              const { deleted, failed } = await deleteDocuments(selected);
-              if (failed > 0) {
-                Alert.alert(
-                  'Delete failed',
-                  failed === deleted + failed
-                    ? 'The documents could not be deleted.'
-                    : `${failed} of ${deleted + failed} could not be deleted.`,
-                );
-              }
+              await softDeleteDocuments(selected);
             } catch {
               Alert.alert('Delete failed', 'Something went wrong. Please try again.');
             } finally {
@@ -278,17 +282,26 @@ export default function LibraryScreen() {
               autoCorrect={false}
             />
             {query.length > 0 && (
-              <Pressable hitSlop={8} onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search">
+              <Pressable hitSlop={14} onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search">
                 <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
               </Pressable>
             )}
           </View>
           <Pressable
-            style={({ pressed }) => [styles.sortChip, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Show favorites only"
+            onPress={() => setFavOnly((v) => !v)}
+            style={({ pressed }) => [styles.sortChip, favOnly && styles.favChipOn, pressed && styles.pressed]}>
+            <Ionicons name={favOnly ? 'star' : 'star-outline'} size={15} color={favOnly ? colors.accent : colors.text} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Toggle sort order"
             onPress={() => {
               Haptics.selectionAsync().catch(() => {});
               setSort((s) => (s === 'recent' ? 'name' : 'recent'));
-            }}>
+            }}
+            style={({ pressed }) => [styles.sortChip, pressed && styles.pressed]}>
             <Ionicons
               name={sort === 'recent' ? 'time-outline' : 'text-outline'}
               size={15}
@@ -301,7 +314,11 @@ export default function LibraryScreen() {
         </View>
       )}
 
-      {!loaded ? null : docs.length === 0 ? (
+      {!loaded ? (
+        <View style={styles.checkGate}>
+          <ActivityIndicator color={colors.textTertiary} />
+        </View>
+      ) : docs.length === 0 ? (
         <View style={styles.empty}>
           <View style={styles.emptyIcon}>
             <Ionicons name="document-text-outline" size={40} color={colors.textTertiary} />
@@ -328,7 +345,7 @@ export default function LibraryScreen() {
           renderItem={renderItem}
           numColumns={2}
           columnWrapperStyle={styles.column}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 96 + insets.bottom }]}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
@@ -407,7 +424,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.m,
     paddingHorizontal: spacing.m,
-    height: 40,
+    minHeight: 44,
   },
   searchInput: {
     flex: 1,
@@ -423,14 +440,16 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.m,
     paddingHorizontal: spacing.m,
-    height: 40,
+    minHeight: 44,
   },
   sortText: {
     color: colors.text,
   },
+  favChipOn: {
+    borderColor: colors.accent,
+  },
   listContent: {
     paddingHorizontal: spacing.m,
-    paddingBottom: 96,
     gap: spacing.m,
   },
   column: {

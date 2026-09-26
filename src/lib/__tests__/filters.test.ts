@@ -62,16 +62,19 @@ describe('filters — color matrix math', () => {
     expect(r).toBeCloseTo(120, 5);
   });
 
-  test('B&W preset is grayscale followed by a contrast boost', () => {
+  test('B&W preset: paper near white, faint ink near black', () => {
     const bw = matrixFor('bw', NEUTRAL_ADJUSTMENTS);
-    const gray = getFilterPreset('grayscale').base;
-    expect(bw[0]).toBeCloseTo(0.213 * 1.35, 5);
-    expect(bw[1]).toBeCloseTo(0.715 * 1.35, 5);
-    expect(bw[4]).toBeCloseTo(128 * (1 - 1.35), 5);
-    // spot-check an actual pixel: mid-gray maps to mid-gray
-    const [r] = applyRow(bw, 128, 128, 128);
-    expect(r).toBeCloseTo(128, 5);
-    expect(gray).toBeDefined();
+    // composed: desat ∘ contrast(2.1) ∘ brightness(1.02)
+    expect(bw[0]).toBeCloseTo(0.213 * 1.02 * 2.1, 5);
+    expect(bw[1]).toBeCloseTo(0.715 * 1.02 * 2.1, 5);
+    expect(bw[4]).toBeCloseTo(128 * (1 - 2.1), 5);
+    // paper (210) is driven past white (clamped by the renderer)
+    const [paper] = applyRow(bw, 210, 210, 210);
+    expect(paper).toBeGreaterThanOrEqual(250);
+    // faint pencil text (110) lands well below paper — crisp separation
+    const [ink] = applyRow(bw, 110, 110, 110);
+    expect(ink).toBeLessThanOrEqual(100);
+    expect(paper - ink).toBeGreaterThanOrEqual(150);
   });
 
   test('magic preset keeps pixels sane for black and white inputs', () => {
@@ -88,8 +91,8 @@ describe('filters — color matrix math', () => {
       expect(Number.isFinite(or_)).toBe(true);
       expect(Number.isFinite(og)).toBe(true);
       expect(Number.isFinite(ob)).toBe(true);
-      expect(or_).toBeGreaterThanOrEqual(-24);
-      expect(or_).toBeLessThanOrEqual(290);
+      expect(or_).toBeGreaterThanOrEqual(-46);
+      expect(or_).toBeLessThanOrEqual(300);
     }
   });
 

@@ -117,6 +117,7 @@ export default function FilterScreen() {
                 )}
               </View>
               <Text
+                numberOfLines={1}
                 style={[
                   type.caption,
                   active ? styles.filterLabelActive : styles.filterLabel,
@@ -131,6 +132,10 @@ export default function FilterScreen() {
       <View style={styles.adjustSection}>
         <Pressable
           style={({ pressed }) => [styles.adjustToggle, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Toggle adjustments"
+          accessibilityState={{ expanded }}
+          hitSlop={4}
           onPress={() => setExpanded((v) => !v)}>
           <Text style={[type.label, styles.adjustToggleText]}>
             Adjust
@@ -284,7 +289,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 40,
+    minHeight: 44,
   },
   adjustToggleText: {
     color: colors.text,

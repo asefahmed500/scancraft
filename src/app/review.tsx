@@ -364,7 +364,8 @@ export default function ReviewScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScreenHeader
         title={asString(params.pageId) ? 'Re-crop page' : 'Adjust crop'}
-        onBack={busy ? undefined : () => router.back()}
+        onBack={() => router.back()}
+        backDisabled={busy}
         style={styles.header}
       />
       {invalid ? (
